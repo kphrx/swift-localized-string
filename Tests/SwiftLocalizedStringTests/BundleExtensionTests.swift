@@ -25,8 +25,70 @@ import struct Foundation.Locale
 
 @testable import SwiftLocalizedString
 
+struct PreferredLocalizationsTests {
+  @Test func testHasFallbackLocalizations() throws {
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb", "en"], forPreferences: ["en", "ja_jp", "en_gb"])
+        == [
+          "en"
+        ])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb", "en"], forPreferences: ["en_001", "ja_jp", "en_gb"])
+        == ["en"])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en", "en_gb"], forPreferences: ["en_gb", "ja_jp"]) == [
+          "en_gb", "en",
+        ])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en", "en_gb"], forPreferences: ["en_gb", "ja_jp", "en"])
+        == [
+          "en_gb", "en",
+        ])
+  }
+
+  @Test func testSpecificRegionLocalizations() throws {
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb"], forPreferences: ["en", "ja_jp", "en_gb"]) == [
+          "en_gb"
+        ])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb"], forPreferences: ["en_001", "ja_jp", "en_gb"]) == [
+          "en_gb"
+        ])
+  }
+
+  @Test func testFallbackRegionLocalizations() throws {
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb"], forPreferences: ["en", "ja_jp"]) == ["en_us"])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_us", "en_gb"], forPreferences: ["en_001", "ja_jp"]) == ["en_us"])
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_gb", "en_us"], forPreferences: ["en_001", "ja_jp"]) == ["en_gb"])
+  }
+
+  #if canImport(Darwin)
+  @Test
+  #else
+  @Test(.disabled("Always failed in OSS Swift"))
+  #endif
+  func testFallbackPriorityRegionLocalizations() throws {
+    #expect(
+      preferredLocalizations(
+        from: ["ja", "ja-jp", "en_gb", "en_us"], forPreferences: ["en", "ja_jp"]) == ["en_us"])
+  }
+}
+
 struct BundleExtensionTests {
-  @Test func testLocalizedStringWithLocale() async throws {
+  @Test func testLocalizedStringWithLocale() throws {
     #expect(
       Bundle.module.localizedString(
         forKey: "color", value: "Default value of color", table: nil,
