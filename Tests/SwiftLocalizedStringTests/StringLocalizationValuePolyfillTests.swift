@@ -29,13 +29,14 @@ struct StringLocalizationValuePolyfillTests {
   @Test func testStringInterpolationWithSubject() throws {
     var encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
+    let nsLocale = NSLocale(localeIdentifier: "en_US")
+    let expected = """
+      {"arguments":[{"string":{"_0":"\(nsLocale.description)"}}],"key":"%@"}
+      """
 
     #expect(
       String(
-        data: try encoder.encode(
-          "\(NSLocale(localeIdentifier: "en_US"))" as String.LocalizationValuePolyfill),
-        encoding: .utf8) == """
-          {"arguments":[{"string":{"_0":"\(NSLocale(localeIdentifier: "en_US").description)"}}],"key":"%@"}
-          """)
+        data: try encoder.encode("\(nsLocale)" as String.LocalizationValuePolyfill), encoding: .utf8
+      ) == expected)
   }
 }
