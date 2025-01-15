@@ -27,11 +27,101 @@ extension String {
   @available(tvOS, deprecated: 15.0, renamed: "LocalizationValue")
   public struct LocalizationValuePolyfill: Codable {
     enum FormatArgument: Codable {
-      case unknown
+      enum Value: Codable {
+        case string(String)
+        case uint64(UInt64)
+        case uint32(UInt32)
+        case int64(Int64)
+        case int32(Int32)
+        case double(Double)
+        case float(Float)
+
+        func toFormatArg() -> any CVarArg {
+          switch self {
+          case .string(let value): value
+          case .uint64(let value): value
+          case .uint32(let value): value
+          case .int64(let value): value
+          case .int32(let value): value
+          case .double(let value): value
+          case .float(let value): value
+          }
+        }
+      }
+
+      enum StringFormat: Codable {
+        case unknown
+      }
+
+      case value(Value)
+      case stringFormat(StringFormat)
+
+      static func string(_ value: String) -> Self {
+        .value(.string(String(value)))
+      }
+
+      static func uint64(_ value: UInt64) -> Self {
+        .value(.uint64(value))
+      }
+
+      static func uint32(_ value: UInt32) -> Self {
+        .value(.uint32(value))
+      }
+
+      static func uint16(_ value: UInt16) -> Self {
+        .value(.uint32(UInt32(value)))
+      }
+
+      static func uint8(_ value: UInt8) -> Self {
+        .value(.uint32(UInt32(value)))
+      }
+
+      static func int64(_ value: Int64) -> Self {
+        .value(.int64(value))
+      }
+
+      static func int32(_ value: Int32) -> Self {
+        .value(.int32(value))
+      }
+
+      static func int16(_ value: Int16) -> Self {
+        .value(.int32(Int32(value)))
+      }
+
+      static func int8(_ value: Int8) -> Self {
+        .value(.int32(Int32(value)))
+      }
+
+      static func double(_ value: Double) -> Self {
+        .value(.double(value))
+      }
+
+      static func float(_ value: Float) -> Self {
+        .value(.float(value))
+      }
+
+      init(from decoder: any Decoder) throws {
+        do {
+          let value = try Value(from: decoder)
+          self = .value(value)
+        } catch DecodingError.dataCorrupted {
+          self = .stringFormat(.unknown)
+        }
+      }
+
+      func encode(to encoder: Encoder) throws {
+        switch self {
+        case .value(let value): try value.encode(to: encoder)
+        case .stringFormat:
+          throw EncodingError.invalidValue(
+            self, .init(codingPath: encoder.codingPath, debugDescription: "unknown arguments"))
+        }
+      }
 
       func toFormatArg() -> any CVarArg {
         switch self {
-        case .unknown: Int(0)
+        case .value(let value): value.toFormatArg()
+        case .stringFormat: Int(0)
         }
       }
     }
@@ -124,5 +214,35 @@ extension String {
 
     self.init(
       format: format, locale: locale, arguments: defaultValue.arguments.map { $0.toFormatArg() })
+  }
+}
+
+extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
+  public struct StringInterpolation: StringInterpolationProtocol, Sendable {
+    var value: String = ""
+    var interpolations: [FormatArgument] = []
+
+    public init(literalCapacity: Int, interpolationCount: Int) {
+      self.value.reserveCapacity(literalCapacity)
+      self.interpolations.reserveCapacity(interpolationCount)
+    }
+
+    public mutating func appendLiteral(_ literal: String) {
+      self.value += literal.replacingOccurrences(of: "%", with: "%%")
+    }
+
+    public mutating func appendInterpolation<Subject>(_ subject: Subject) where Subject: NSObject {
+      self.value += "%@"
+      self.interpolations.append(.string(subject.description))
+    }
+  }
+
+  public init(stringInterpolation: StringInterpolation) {
+    self.key = stringInterpolation.value
+    self.arguments = stringInterpolation.interpolations
+  }
+
+  public init(stringLiteral: StringLiteralType) {
+    self.init(stringLiteral)
   }
 }
