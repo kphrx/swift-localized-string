@@ -27,12 +27,15 @@ import class Foundation.NSLocale
 
 struct StringLocalizationValuePolyfillTests {
   @Test func testStringInterpolationWithSubject() throws {
+    var encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+
     #expect(
       String(
-        data: try JSONEncoder().encode(
+        data: try encoder.encode(
           "\(NSLocale(localeIdentifier: "en_US"))" as String.LocalizationValuePolyfill),
         encoding: .utf8) == """
-          {"key":"%@","arguments":[{"string":{"_0":"\(NSLocale(localeIdentifier: "en_US").description)"}}]}
+          {"arguments":[{"string":{"_0":"\(NSLocale(localeIdentifier: "en_US").description)"}}],"key":"%@"}
           """)
   }
 }
