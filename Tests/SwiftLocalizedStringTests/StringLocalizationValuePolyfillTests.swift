@@ -27,7 +27,7 @@ import class Foundation.NSLocale
 
 struct StringLocalizationValuePolyfillTests {
   @Test func testStringInterpolationWithSubject() throws {
-    var encoder = JSONEncoder()
+    let encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
     let nsLocale = NSLocale(localeIdentifier: "en_US")
     let expected = """

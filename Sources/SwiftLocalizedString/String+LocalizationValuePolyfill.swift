@@ -25,113 +25,90 @@ extension String {
   @available(iOS, deprecated: 15.0, renamed: "LocalizationValue")
   @available(watchOS, deprecated: 8.0, renamed: "LocalizationValue")
   @available(tvOS, deprecated: 15.0, renamed: "LocalizationValue")
-  public struct LocalizationValuePolyfill: Codable {
-    enum FormatArgument: Codable {
-      enum Value: Codable {
-        case string(String)
-        case uint64(UInt64)
-        case uint32(UInt32)
-        case int64(Int64)
-        case int32(Int32)
-        case double(Double)
-        case float(Float)
+  public struct LocalizationValuePolyfill: Sendable {
+    struct FormatArgument: Sendable {
+      enum Storage: Sendable {
+        enum Value {
+          case string(String)
+          case uint64(UInt64)
+          case uint32(UInt32)
+          case int64(Int64)
+          case int32(Int32)
+          case double(Double)
+          case float(Float)
 
-        func toFormatArg() -> any CVarArg {
-          switch self {
-          case .string(let value): value
-          case .uint64(let value): value
-          case .uint32(let value): value
-          case .int64(let value): value
-          case .int32(let value): value
-          case .double(let value): value
-          case .float(let value): value
+          func toFormatArg() -> any CVarArg {
+            switch self {
+            case .string(let value): value
+            case .uint64(let value): value
+            case .uint32(let value): value
+            case .int64(let value): value
+            case .int32(let value): value
+            case .double(let value): value
+            case .float(let value): value
+            }
           }
         }
+
+        struct StringFormatWrapper {}
+
+        // String.LocalizationValue.FormatArgument.Storage.value is not enum...
+        case value(Value)
+        case stringFormat(StringFormatWrapper)
       }
 
-      enum StringFormat: Codable {
-        case unknown
+      let storage: Storage
+
+      init(storage: Storage) {
+        self.storage = storage
       }
 
-      case value(Value)
-      case stringFormat(StringFormat)
-
-      static func string(_ value: String) -> Self {
-        .value(.string(String(value)))
+      init(_ value: Storage.Value) {
+        self.init(storage: .value(value))
       }
 
-      static func uint64(_ value: UInt64) -> Self {
-        .value(.uint64(value))
+      init(_ stringFormat: Storage.StringFormatWrapper) {
+        self.init(storage: .stringFormat(stringFormat))
       }
 
-      static func uint32(_ value: UInt32) -> Self {
-        .value(.uint32(value))
+      init(_ value: String) {
+        self.init(.string(value))
       }
 
-      static func uint16(_ value: UInt16) -> Self {
-        .value(.uint32(UInt32(value)))
+      init(_ value: UInt64) {
+        self.init(.uint64(value))
       }
 
-      static func uint8(_ value: UInt8) -> Self {
-        .value(.uint32(UInt32(value)))
+      init(_ value: UInt32) {
+        self.init(.uint32(value))
       }
 
-      static func int64(_ value: Int64) -> Self {
-        .value(.int64(value))
+      init(_ value: Int64) {
+        self.init(.int64(value))
       }
 
-      static func int32(_ value: Int32) -> Self {
-        .value(.int32(value))
+      init(_ value: Int32) {
+        self.init(.int32(value))
       }
 
-      static func int16(_ value: Int16) -> Self {
-        .value(.int32(Int32(value)))
+      init(_ value: Double) {
+        self.init(.double(value))
       }
 
-      static func int8(_ value: Int8) -> Self {
-        .value(.int32(Int32(value)))
-      }
-
-      static func double(_ value: Double) -> Self {
-        .value(.double(value))
-      }
-
-      static func float(_ value: Float) -> Self {
-        .value(.float(value))
-      }
-
-      init(from decoder: any Decoder) throws {
-        do {
-          let value = try Value(from: decoder)
-          self = .value(value)
-        } catch DecodingError.dataCorrupted {
-          self = .stringFormat(.unknown)
-        }
-      }
-
-      func encode(to encoder: Encoder) throws {
-        switch self {
-        case .value(let value): try value.encode(to: encoder)
-        case .stringFormat:
-          throw EncodingError.invalidValue(
-            self, .init(codingPath: encoder.codingPath, debugDescription: "unknown arguments"))
-        }
+      init(_ value: Float) {
+        self.init(.float(value))
       }
 
       func toFormatArg() -> any CVarArg {
-        switch self {
+        switch self.storage {
         case .value(let value): value.toFormatArg()
         case .stringFormat: Int(0)
         }
       }
     }
 
-    enum CodingKeys: String, CodingKey {
-      case key, arguments
-    }
-
-    var key: String
-    var arguments: [FormatArgument]
+    let key: String
+    let arguments: [FormatArgument]
 
     public init(_ value: String) {
       self.key = value
@@ -217,6 +194,95 @@ extension String {
   }
 }
 
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.Value: Codable {}
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Codable {}
+
+extension String.LocalizationValuePolyfill: Codable {
+  enum CodingKeys: String, CodingKey {
+    case key, arguments
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.key = try container.decode(String.self, forKey: .key)
+
+    var arguments: [FormatArgument] = []
+    var argumentsContainer = try container.nestedUnkeyedContainer(forKey: .arguments)
+    while !argumentsContainer.isAtEnd {
+      let argument: FormatArgument =
+        if let value = try? argumentsContainer.decode(
+          String.LocalizationValuePolyfill.FormatArgument.Storage.Value.self)
+        {
+          .init(value)
+        } else {
+          .init(
+            try argumentsContainer.decode(
+              String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper.self))
+        }
+      arguments.append(argument)
+    }
+    self.arguments = arguments
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(self.key, forKey: .key)
+
+    var argumentsContainer = container.nestedUnkeyedContainer(forKey: .arguments)
+    for argument in self.arguments {
+      switch argument.storage {
+      case .value(let value):
+        try argumentsContainer.encode(value)
+      case .stringFormat(let stringFormat):
+        try argumentsContainer.encode(stringFormat)
+      }
+    }
+  }
+}
+
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.Value: Equatable {
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    switch (lhs, rhs) {
+    case (.string(let lhsValue), .string(let rhsValue)): lhsValue == rhsValue
+    case (.uint64(let lhsValue), .uint64(let rhsValue)): lhsValue == rhsValue
+    case (.uint32(let lhsValue), .uint32(let rhsValue)): lhsValue == rhsValue
+    case (.int64(let lhsValue), .int64(let rhsValue)): lhsValue == rhsValue
+    case (.int32(let lhsValue), .int32(let rhsValue)): lhsValue == rhsValue
+    case (.double(let lhsValue), .double(let rhsValue)): lhsValue == rhsValue
+    case (.float(let lhsValue), .float(let rhsValue)): lhsValue == rhsValue
+    default: false
+    }
+  }
+}
+
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Equatable {
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    false
+  }
+}
+
+extension String.LocalizationValuePolyfill.FormatArgument.Storage: Equatable {
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    switch (lhs, rhs) {
+    case (.value(let lhsValue), .value(let rhsValue)): lhsValue == rhsValue
+    case (.stringFormat(let lhsFormat), .stringFormat(let rhsFormat)): lhsFormat == rhsFormat
+    default: false
+    }
+  }
+}
+
+extension String.LocalizationValuePolyfill.FormatArgument: Equatable {
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.storage == rhs.storage
+  }
+}
+
+extension String.LocalizationValuePolyfill: Equatable {
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.key == rhs.key && lhs.arguments == rhs.arguments
+  }
+}
+
 extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
   public struct StringInterpolation: StringInterpolationProtocol, Sendable {
     var value: String = ""
@@ -233,7 +299,7 @@ extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
 
     public mutating func appendInterpolation<Subject>(_ subject: Subject) where Subject: NSObject {
       self.value += "%@"
-      self.interpolations.append(.string(subject.description))
+      self.interpolations.append(.init(subject.description))
     }
   }
 
