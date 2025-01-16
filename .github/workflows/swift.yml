@@ -25,4 +25,47 @@ jobs:
     - name: Build
       run: swift build ${{ runner.debug == '1' && '--verbose' || '' }}
     - name: Run tests
-      run: swift test --disable-xctest --enable-swift-testing ${{ runner.debug == '1' && '--verbose' || '' }}
+      run: swift test --disable-xctest --enable-swift-testing --enable-code-coverage ${{ runner.debug == '1' && '--verbose' || '' }}
+    - name: Set output path
+      id: paths
+      shell: bash
+      run: |
+        echo "ignore-regex=[/\\](.build|Tests)[/\\]" >> "$GITHUB_OUTPUT"
+        echo "lcov-path=./info.lcov" >> "$GITHUB_OUTPUT"
+        echo "profile-path=$(swift build --show-bin-path)/codecov/default.profdata" >> "$GITHUB_OUTPUT"
+        case "${{ runner.os }}" in
+          "macOS")
+            echo "executable-path=$(swift build --show-bin-path)/SwiftLocalizedStringPackageTests.xctest/Contents/MacOS/SwiftLocalizedStringPackageTests" >> "$GITHUB_OUTPUT"
+          ;;
+          *)
+            echo "executable-path=$(swift build --show-bin-path)/SwiftLocalizedStringPackageTests.xctest" >> "$GITHUB_OUTPUT"
+          ;;
+        esac
+    - name: Generate lcov
+      if: '!cancelled()'
+      id: generate-lcov
+      shell: bash
+      env:
+        LLVM_COV_ARGS: -ignore-filename-regex='${{ steps.paths.outputs.ignore-regex }}' -instr-profile "${{ steps.paths.outputs.profile-path }}" "${{ steps.paths.outputs.executable-path }}"
+      run: |
+        if [ -f "${{ steps.paths.outputs.profile-path }}" ]; then
+          case "${{ runner.os }}" in
+            "macOS")
+              xcrun llvm-cov report ${{ env.LLVM_COV_ARGS }} | sed 's/   */|/g;s/---*/||||||||||||/;2s/|/-|/g;s/-|$/-|-/' >> "$GITHUB_STEP_SUMMARY"
+              xcrun llvm-cov export -format="lcov" ${{ env.LLVM_COV_ARGS }} > "${{ steps.paths.outputs.lcov-path }}"
+            ;;
+            *)
+              llvm-cov report ${{ env.LLVM_COV_ARGS }} | sed 's/   */|/g;s/---*/||||||||||||/;2s/|/-|/g;s/-|$/-|-/' >> "$GITHUB_STEP_SUMMARY"
+              llvm-cov export -format="lcov" ${{ env.LLVM_COV_ARGS }} > "${{ steps.paths.outputs.lcov-path }}"
+            ;;
+          esac
+        else
+          exit 1
+        fi
+    - uses: codecov/codecov-action@v5
+      if: ${{ !cancelled() && steps.generate-lcov.conclusion == 'success' }}
+      with:
+        fail_ci_if_error: true
+        files: ${{ steps.paths.outputs.lcov-path }}
+        token: ${{ secrets.CODECOV_TOKEN }}
+        verbose: ${{ runner.debug == '1' }}
