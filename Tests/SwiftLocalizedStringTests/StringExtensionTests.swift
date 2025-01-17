@@ -33,7 +33,8 @@ struct StringExtensionTests {
     }
 
     @Test func testLocalizedStringInterpolation() throws {
-      #expect(String(localized: "%@ decimal: \(Decimal(0.6), format: .percent), string: \("text"), 64bit unsigned integer: \(UInt.max), 64bit integer: \(Int.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))", bundle: .module, locale: Locale(identifier: "fr_FR")) == "64bit unsigned integer: -1, 32bit unsigned integer: -1, 64bit integer: −9 223 372 036 854 775 808, 32bit integer: -2 147 483 648, double: 42,195000, float: 3,140000, decimal: 60 %, text")
+      let nbsp: (normal: String, narrow: String) = ("\u{a0}", "\u{202f}")
+      #expect(String(localized: "%@ decimal: \(Decimal(0.6), format: .percent), string: \("text"), 64bit unsigned integer: \(UInt.max), 64bit integer: \(Int.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))", bundle: .module, locale: Locale(identifier: "fr_FR")) == "64bit unsigned integer: -1, 32bit unsigned integer: -1, 64bit integer: -9\(nbsp.narrow)223\(nbsp.narrow)372\(nbsp.narrow)036\(nbsp.narrow)854\(nbsp.narrow)775\(nbsp.narrow)808, 32bit integer: -2\(nbsp.narrow)147\(nbsp.narrow)483\(nbsp.narrow)648, double: 42,195000, float: 3,140000, decimal: 60\(nbsp.normal)%, text")
     }
   }
 }
