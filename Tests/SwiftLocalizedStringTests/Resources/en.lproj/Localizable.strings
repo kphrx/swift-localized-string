@@ -1,1 +1,3 @@
 "color" = "Color";
+
+"%%@ decimal: %@, string: %@, 64bit unsigned integer: %llu, 64bit integer: %lld, double: %lf, 32bit unsigned integer: %u, 32bit integer: %d, float: %f" = "64bit unsigned integer: %3$llu, 32bit unsigned integer: %6$u, 64bit integer: %4$lld, 32bit integer: %7$d, double: %5$lf, float: %8$f, decimal: %1$@, %2$@";
