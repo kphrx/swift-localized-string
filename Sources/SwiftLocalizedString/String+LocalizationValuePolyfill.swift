@@ -20,6 +20,89 @@
 
 import Foundation
 
+enum _FormatSpecifiableValue: Codable, Equatable {
+  case string(String)
+  case uint64(UInt64)
+  case uint32(UInt32)
+  case int64(Int64)
+  case int32(Int32)
+  case double(Double)
+  case float(Float)
+
+  func toFormat() -> _FormatSpecifiable {
+    switch self {
+    case .string(let value): value
+    case .uint64(let value): value
+    case .uint32(let value): value
+    case .int64(let value): value
+    case .int32(let value): value
+    case .double(let value): value
+    case .float(let value): value
+    }
+  }
+}
+
+protocol _FormatSpecifiable: Sendable, CVarArg {
+  var formatValue: _FormatSpecifiableValue { get }
+  var formatSpecifier: String { get }
+}
+
+extension _FormatSpecifiable {
+  var formatSpecifier: String {
+    switch self.formatValue {
+    case .string: "%@"
+    case .uint64: "%llu"
+    case .uint32: "%u"
+    case .int64: "%lld"
+    case .int32: "%d"
+    case .double: "%lf"
+    case .float: "%f"
+    }
+  }
+}
+
+extension String: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .string(self)
+  }
+}
+
+extension UInt64: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .uint64(self)
+  }
+}
+
+extension UInt32: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .uint32(self)
+  }
+}
+
+extension Int64: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .int64(self)
+  }
+}
+
+extension Int32: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .int32(self)
+  }
+}
+
+extension Double: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .double(self)
+  }
+}
+
+extension Float: _FormatSpecifiable {
+  var formatValue: _FormatSpecifiableValue {
+    .float(self)
+  }
+}
+
 extension String {
   @available(macOS, deprecated: 12.0, renamed: "LocalizationValue")
   @available(iOS, deprecated: 15.0, renamed: "LocalizationValue")
@@ -28,28 +111,6 @@ extension String {
   public struct LocalizationValuePolyfill: Sendable {
     struct FormatArgument: Sendable {
       enum Storage: Sendable {
-        enum Value {
-          case string(String)
-          case uint64(UInt64)
-          case uint32(UInt32)
-          case int64(Int64)
-          case int32(Int32)
-          case double(Double)
-          case float(Float)
-
-          func toFormatArg() -> any CVarArg {
-            switch self {
-            case .string(let value): value
-            case .uint64(let value): value
-            case .uint32(let value): value
-            case .int64(let value): value
-            case .int32(let value): value
-            case .double(let value): value
-            case .float(let value): value
-            }
-          }
-        }
-
         #if canImport(Darwin)
         struct StringFormatWrapper {}
         #else
@@ -63,8 +124,7 @@ extension String {
         }
         #endif
 
-        // String.LocalizationValue.FormatArgument.Storage.value is not enum...
-        case value(Value)
+        case value(any _FormatSpecifiable)
         case stringFormat(StringFormatWrapper)
       }
 
@@ -74,45 +134,21 @@ extension String {
         self.storage = storage
       }
 
-      init(value: Storage.Value) {
+      init(_ value: any _FormatSpecifiable) {
         self.init(storage: .value(value))
+      }
+
+      init(value: _FormatSpecifiableValue) {
+        self.init(value.toFormat())
       }
 
       init(stringFormat: Storage.StringFormatWrapper) {
         self.init(storage: .stringFormat(stringFormat))
       }
 
-      init(_ value: String) {
-        self.init(value: .string(value))
-      }
-
-      init(_ value: UInt64) {
-        self.init(value: .uint64(value))
-      }
-
-      init(_ value: UInt32) {
-        self.init(value: .uint32(value))
-      }
-
-      init(_ value: Int64) {
-        self.init(value: .int64(value))
-      }
-
-      init(_ value: Int32) {
-        self.init(value: .int32(value))
-      }
-
-      init(_ value: Double) {
-        self.init(value: .double(value))
-      }
-
-      init(_ value: Float) {
-        self.init(value: .float(value))
-      }
-
       func toFormatArg() -> any CVarArg {
         switch self.storage {
-        case .value(let value): value.toFormatArg()
+        case .value(let value): value
         case .stringFormat: Int(0)
         }
       }
@@ -205,7 +241,6 @@ extension String {
   }
 }
 
-extension String.LocalizationValuePolyfill.FormatArgument.Storage.Value: Codable {}
 extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Codable {}
 
 extension String.LocalizationValuePolyfill: Codable {
@@ -227,9 +262,7 @@ extension String.LocalizationValuePolyfill: Codable {
         {
           .init(stringFormat: stringFormat)
         } else {
-          .init(
-            value: try argumentsContainer.decode(
-              String.LocalizationValuePolyfill.FormatArgument.Storage.Value.self))
+          .init(value: try argumentsContainer.decode(_FormatSpecifiableValue.self))
         }
       arguments.append(argument)
     }
@@ -244,25 +277,10 @@ extension String.LocalizationValuePolyfill: Codable {
     for argument in self.arguments {
       switch argument.storage {
       case .value(let value):
-        try argumentsContainer.encode(value)
+        try argumentsContainer.encode(value.formatValue)
       case .stringFormat(let stringFormat):
         try argumentsContainer.encode(stringFormat)
       }
-    }
-  }
-}
-
-extension String.LocalizationValuePolyfill.FormatArgument.Storage.Value: Equatable {
-  static func == (lhs: Self, rhs: Self) -> Bool {
-    switch (lhs, rhs) {
-    case (.string(let lhsValue), .string(let rhsValue)): lhsValue == rhsValue
-    case (.uint64(let lhsValue), .uint64(let rhsValue)): lhsValue == rhsValue
-    case (.uint32(let lhsValue), .uint32(let rhsValue)): lhsValue == rhsValue
-    case (.int64(let lhsValue), .int64(let rhsValue)): lhsValue == rhsValue
-    case (.int32(let lhsValue), .int32(let rhsValue)): lhsValue == rhsValue
-    case (.double(let lhsValue), .double(let rhsValue)): lhsValue == rhsValue
-    case (.float(let lhsValue), .float(let rhsValue)): lhsValue == rhsValue
-    default: false
     }
   }
 }
@@ -276,7 +294,7 @@ extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWr
 extension String.LocalizationValuePolyfill.FormatArgument.Storage: Equatable {
   static func == (lhs: Self, rhs: Self) -> Bool {
     switch (lhs, rhs) {
-    case (.value(let lhsValue), .value(let rhsValue)): lhsValue == rhsValue
+    case (.value(let lhsValue), .value(let rhsValue)): lhsValue.formatValue == rhsValue.formatValue
     case (.stringFormat(let lhsFormat), .stringFormat(let rhsFormat)): lhsFormat == rhsFormat
     default: false
     }
@@ -309,9 +327,20 @@ extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
       self.value += literal.replacingOccurrences(of: "%", with: "%%")
     }
 
+    mutating func appendInterpolation<T>(_ value: T, specifier: String)
+    where T: _FormatSpecifiable {
+      self.value += specifier
+      self.interpolations.append(.init(value))
+    }
+
     public mutating func appendInterpolation<Subject>(_ subject: Subject) where Subject: NSObject {
       self.value += "%@"
       self.interpolations.append(.init(subject.description))
+    }
+
+    mutating func appendInterpolation<T>(_ value: T) where T: _FormatSpecifiable {
+      self.value += value.formatSpecifier
+      self.interpolations.append(.init(value))
     }
 
     @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
@@ -325,6 +354,11 @@ extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
       #else
       self.interpolations.append(.init(stringFormat: .init(value, format: format)))
       #endif
+    }
+
+    mutating func appendInterpolation(_ value: String) {
+      self.value += "%@"
+      self.interpolations.append(.init(value))
     }
   }
 
