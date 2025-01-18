@@ -111,18 +111,204 @@ extension String {
   public struct LocalizationValuePolyfill: Sendable {
     struct FormatArgument: Sendable {
       enum Storage: Sendable {
-        #if canImport(Darwin)
-        struct StringFormatWrapper {}
-        #else
-        struct StringFormatWrapper {
+        struct StringFormatWrapper: Sendable {
+          @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+          enum FormattedValue: Codable {
+            struct FormattedDateStyle: Codable {
+              enum Format: Codable {
+                case dateTime(Date.FormatStyle)
+                case iso8601(Date.ISO8601FormatStyle)
+              }
+              let format: Format
+
+              init(format: Date.FormatStyle) {
+                self.format = .dateTime(format)
+              }
+              init(format: Date.ISO8601FormatStyle) {
+                self.format = .iso8601(format)
+              }
+            }
+
+            struct FormattedDecimalStyle: Codable {
+              typealias FormatStyle = Decimal.FormatStyle
+
+              enum Format: Codable {
+                case number(FormatStyle)
+                case currency(FormatStyle.Currency)
+                case percent(FormatStyle.Percent)
+              }
+              let format: Format
+
+              init(format: FormatStyle) {
+                self.format = .number(format)
+              }
+              init(format: FormatStyle.Currency) {
+                self.format = .currency(format)
+              }
+              init(format: FormatStyle.Percent) {
+                self.format = .percent(format)
+              }
+            }
+
+            struct FormattedFloatStyle: Codable {
+              typealias FormatStyle = FloatingPointFormatStyle<Double>
+
+              enum Format: Codable {
+                case number(FormatStyle)
+                case currency(FormatStyle.Currency)
+                case percent(FormatStyle.Percent)
+              }
+              let format: Format
+
+              init(format: FormatStyle) {
+                self.format = .number(format)
+              }
+              init(format: FormatStyle.Currency) {
+                self.format = .currency(format)
+              }
+              init(format: FormatStyle.Percent) {
+                self.format = .percent(format)
+              }
+            }
+
+            struct FormattedIntStyle: Codable {
+              typealias FormatStyle = IntegerFormatStyle<Int>
+
+              enum Format: Codable {
+                case number(FormatStyle)
+                case currency(FormatStyle.Currency)
+                case percent(FormatStyle.Percent)
+              }
+              let format: Format
+
+              init(format: FormatStyle) {
+                self.format = .number(format)
+              }
+              init(format: FormatStyle.Currency) {
+                self.format = .currency(format)
+              }
+              init(format: FormatStyle.Percent) {
+                self.format = .percent(format)
+              }
+            }
+
+            case formattedDate(Date, FormattedDateStyle)
+            case formattedDecimal(Decimal, FormattedDecimalStyle)
+            case formattedFloat(Double, FormattedFloatStyle)
+            case formattedInt(Int, FormattedIntStyle)
+
+            case string(String)
+            case attributedString(AttributedString)
+
+            init(_ value: Date, format: Date.FormatStyle) {
+              self = .formattedDate(value, .init(format: format))
+            }
+            init(_ value: Date, format: Date.ISO8601FormatStyle) {
+              self = .formattedDate(value, .init(format: format))
+            }
+
+            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle) {
+              self = .formattedDecimal(value, .init(format: format))
+            }
+            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle.Currency) {
+              self = .formattedDecimal(value, .init(format: format))
+            }
+            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle.Percent) {
+              self = .formattedDecimal(value, .init(format: format))
+            }
+
+            init(_ value: Double, format: FormattedFloatStyle.FormatStyle) {
+              self = .formattedFloat(value, .init(format: format))
+            }
+            init(_ value: Double, format: FormattedFloatStyle.FormatStyle.Currency) {
+              self = .formattedFloat(value, .init(format: format))
+            }
+            init(_ value: Double, format: FormattedFloatStyle.FormatStyle.Percent) {
+              self = .formattedFloat(value, .init(format: format))
+            }
+
+            init(_ value: Int, format: FormattedIntStyle.FormatStyle) {
+              self = .formattedInt(value, .init(format: format))
+            }
+            init(_ value: Int, format: FormattedIntStyle.FormatStyle.Currency) {
+              self = .formattedInt(value, .init(format: format))
+            }
+            init(_ value: Int, format: FormattedIntStyle.FormatStyle.Percent) {
+              self = .formattedInt(value, .init(format: format))
+            }
+
+            init<F>(_ value: F.FormatInput, format: F)
+            where F: FormatStyle, F.FormatOutput == String {
+              self = .string(format.format(value))
+            }
+
+            init<F>(_ value: F.FormatInput, format: F)
+            where F: FormatStyle, F.FormatOutput == AttributedString {
+              self = .attributedString(format.format(value))
+            }
+          }
+
+          private var _formattedValue: (any Sendable)?
+
+          @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+          var formattedValue: FormattedValue {
+            get {
+              self._formattedValue as! FormattedValue
+            }
+            set {
+              self._formattedValue = newValue
+            }
+          }
+
+          private var _stringValue: String = ""
+
+          @available(macOS, obsoleted: 12.0, renamed: "formattedValue")
+          @available(iOS, obsoleted: 15.0, renamed: "formattedValue")
+          @available(watchOS, obsoleted: 8.0, renamed: "formattedValue")
+          @available(tvOS, obsoleted: 15.0, renamed: "formattedValue")
+          var stringValue: _FormatSpecifiableValue {
+            .string(self._stringValue)
+          }
+
+          private let _format: @Sendable (Locale) -> String
+
+          @available(macOS, obsoleted: 12.0, renamed: "init(_:format:)")
+          @available(iOS, obsoleted: 15.0, renamed: "init(_:format:)")
+          @available(watchOS, obsoleted: 8.0, renamed: "init(_:format:)")
+          @available(tvOS, obsoleted: 15.0, renamed: "init(_:format:)")
+          init<T>(_ value: T) where T: _FormatSpecifiable {
+            self._stringValue = "\(value)"
+            self._format = { _ in "\(value)" }
+          }
+
+          @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
           init<T, F>(_ value: T, format: F)
           where
             T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable,
-            F.FormatOutput: StringProtocol
+            F.FormatOutput == String
           {
+            self._format = {
+              format.locale($0).format(value)
+            }
+            self.formattedValue = .init(value, format: format)
+          }
+
+          @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+          init<T, F>(_ value: T, format: F)
+          where
+            T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable,
+            F.FormatOutput == AttributedString
+          {
+            self._format = {
+              String(format.locale($0).format(value).characters)
+            }
+            self.formattedValue = .init(value, format: format)
+          }
+
+          func format(locale: Locale) -> String {
+            self._format(locale)
           }
         }
-        #endif
 
         case value(any _FormatSpecifiable)
         case stringFormat(StringFormatWrapper)
@@ -146,10 +332,10 @@ extension String {
         self.init(storage: .stringFormat(stringFormat))
       }
 
-      func toFormatArg() -> any CVarArg {
+      func toFormatArg(_ locale: Locale) -> any CVarArg {
         switch self.storage {
         case .value(let value): value
-        case .stringFormat: Int(0)
+        case .stringFormat(let stringFormat): String(stringFormat.format(locale: locale))
         }
       }
     }
@@ -195,7 +381,7 @@ extension String {
 
     self.init(
       format: bundle.localizedString(forKey: keyAndValue.key, value: nil, table: table),
-      locale: locale, arguments: keyAndValue.arguments.map { $0.toFormatArg() })
+      locale: locale, arguments: keyAndValue.arguments.map { $0.toFormatArg(locale) })
   }
 
   @available(
@@ -237,11 +423,63 @@ extension String {
     }
 
     self.init(
-      format: format, locale: locale, arguments: defaultValue.arguments.map { $0.toFormatArg() })
+      format: format, locale: locale,
+      arguments: defaultValue.arguments.map { $0.toFormatArg(locale) })
   }
 }
 
-extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Codable {}
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Codable {
+  init(from decoder: any Decoder) throws {
+    if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *) {
+      let formattedValue = try String.LocalizationValuePolyfill.FormatArgument.Storage
+        .StringFormatWrapper.FormattedValue(from: decoder)
+      switch formattedValue {
+      case .formattedDate(let value, let style):
+        switch style.format {
+        case .dateTime(let formatStyle): self.init(value, format: formatStyle)
+        case .iso8601(let formatStyle): self.init(value, format: formatStyle)
+        }
+      case .formattedDecimal(let value, let style):
+        switch style.format {
+        case .number(let formatStyle): self.init(value, format: formatStyle)
+        case .currency(let formatStyle): self.init(value, format: formatStyle)
+        case .percent(let formatStyle): self.init(value, format: formatStyle)
+        }
+      case .formattedFloat(let value, let style):
+        switch style.format {
+        case .number(let formatStyle): self.init(value, format: formatStyle)
+        case .currency(let formatStyle): self.init(value, format: formatStyle)
+        case .percent(let formatStyle): self.init(value, format: formatStyle)
+        }
+      case .formattedInt(let value, let style):
+        switch style.format {
+        case .number(let formatStyle): self.init(value, format: formatStyle)
+        case .currency(let formatStyle): self.init(value, format: formatStyle)
+        case .percent(let formatStyle): self.init(value, format: formatStyle)
+        }
+      default:
+        throw DecodingError.typeMismatch(
+          Self.self,
+          .init(
+            codingPath: decoder.codingPath,
+            debugDescription: "Unsupported decoding in unsupported FormatStyle protocol platforms"))
+      }
+    } else {
+      throw DecodingError.dataCorrupted(
+        .init(
+          codingPath: decoder.codingPath,
+          debugDescription: "Unsupported decoding in unsupported FormatStyle protocol platforms"))
+    }
+  }
+
+  func encode(to encoder: Encoder) throws {
+    if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *) {
+      try self.formattedValue.encode(to: encoder)
+    } else {
+      try self.stringValue.encode(to: encoder)
+    }
+  }
+}
 
 extension String.LocalizationValuePolyfill: Codable {
   enum CodingKeys: String, CodingKey {
@@ -256,13 +494,12 @@ extension String.LocalizationValuePolyfill: Codable {
     var argumentsContainer = try container.nestedUnkeyedContainer(forKey: .arguments)
     while !argumentsContainer.isAtEnd {
       let argument: FormatArgument =
-        if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *),
-          let stringFormat = try? argumentsContainer.decode(
-            String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper.self)
-        {
-          .init(stringFormat: stringFormat)
+        if let value = try? argumentsContainer.decode(_FormatSpecifiableValue.self) {
+          .init(value: value)
         } else {
-          .init(value: try argumentsContainer.decode(_FormatSpecifiableValue.self))
+          .init(
+            stringFormat: try argumentsContainer.decode(
+              String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper.self))
         }
       arguments.append(argument)
     }
@@ -285,9 +522,32 @@ extension String.LocalizationValuePolyfill: Codable {
   }
 }
 
+@available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper
+  .FormattedValue: Equatable
+{
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    switch (lhs, rhs) {
+    case (.formattedDate(let lhsDate, _), .formattedDate(let rhsDate, _)): lhsDate == rhsDate
+    case (.formattedDecimal(let lhsDecimal, _), .formattedDecimal(let rhsDecimal, _)):
+      lhsDecimal == rhsDecimal
+    case (.formattedFloat(let lhsFloat, _), .formattedFloat(let rhsFloat, _)): lhsFloat == rhsFloat
+    case (.formattedInt(let lhsInt, _), .formattedInt(let rhsInt, _)): lhsInt == rhsInt
+    case (.string(let lhsString), .string(let rhsString)): lhsString == rhsString
+    case (.attributedString(let lhsAttributedString), .attributedString(let rhsAttributedString)):
+      lhsAttributedString == rhsAttributedString
+    default: false
+    }
+  }
+}
+
 extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper: Equatable {
   static func == (lhs: Self, rhs: Self) -> Bool {
-    false
+    if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *) {
+      lhs.formattedValue == rhs.formattedValue
+    } else {
+      lhs.stringValue == lhs.stringValue
+    }
   }
 }
 
