@@ -50,7 +50,18 @@ extension String {
           }
         }
 
+        #if canImport(Darwin)
         struct StringFormatWrapper {}
+        #else
+        struct StringFormatWrapper {
+          init<T, F>(_ value: T, format: F)
+          where
+            T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable,
+            F.FormatOutput: StringProtocol
+          {
+          }
+        }
+        #endif
 
         // String.LocalizationValue.FormatArgument.Storage.value is not enum...
         case value(Value)
@@ -63,40 +74,40 @@ extension String {
         self.storage = storage
       }
 
-      init(_ value: Storage.Value) {
+      init(value: Storage.Value) {
         self.init(storage: .value(value))
       }
 
-      init(_ stringFormat: Storage.StringFormatWrapper) {
+      init(stringFormat: Storage.StringFormatWrapper) {
         self.init(storage: .stringFormat(stringFormat))
       }
 
       init(_ value: String) {
-        self.init(.string(value))
+        self.init(value: .string(value))
       }
 
       init(_ value: UInt64) {
-        self.init(.uint64(value))
+        self.init(value: .uint64(value))
       }
 
       init(_ value: UInt32) {
-        self.init(.uint32(value))
+        self.init(value: .uint32(value))
       }
 
       init(_ value: Int64) {
-        self.init(.int64(value))
+        self.init(value: .int64(value))
       }
 
       init(_ value: Int32) {
-        self.init(.int32(value))
+        self.init(value: .int32(value))
       }
 
       init(_ value: Double) {
-        self.init(.double(value))
+        self.init(value: .double(value))
       }
 
       init(_ value: Float) {
-        self.init(.float(value))
+        self.init(value: .float(value))
       }
 
       func toFormatArg() -> any CVarArg {
@@ -210,14 +221,15 @@ extension String.LocalizationValuePolyfill: Codable {
     var argumentsContainer = try container.nestedUnkeyedContainer(forKey: .arguments)
     while !argumentsContainer.isAtEnd {
       let argument: FormatArgument =
-        if let value = try? argumentsContainer.decode(
-          String.LocalizationValuePolyfill.FormatArgument.Storage.Value.self)
+        if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *),
+          let stringFormat = try? argumentsContainer.decode(
+            String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper.self)
         {
-          .init(value)
+          .init(stringFormat: stringFormat)
         } else {
           .init(
-            try argumentsContainer.decode(
-              String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWrapper.self))
+            value: try argumentsContainer.decode(
+              String.LocalizationValuePolyfill.FormatArgument.Storage.Value.self))
         }
       arguments.append(argument)
     }
@@ -300,6 +312,19 @@ extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
     public mutating func appendInterpolation<Subject>(_ subject: Subject) where Subject: NSObject {
       self.value += "%@"
       self.interpolations.append(.init(subject.description))
+    }
+
+    @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    public mutating func appendInterpolation<T, F>(_ value: T, format: F)
+    where
+      T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable, F.FormatOutput == String
+    {
+      self.value += "%@"
+      #if canImport(Darwin)
+      self.interpolations.append(.init(format.format(value)))
+      #else
+      self.interpolations.append(.init(stringFormat: .init(value, format: format)))
+      #endif
     }
   }
 
