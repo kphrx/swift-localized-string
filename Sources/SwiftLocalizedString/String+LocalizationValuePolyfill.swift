@@ -198,7 +198,8 @@ extension String {
             case formattedInt(Int, FormattedIntStyle)
 
             case string(String)
-            case attributedString(AttributedString)
+            // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+            // case attributedString(AttributedString)
 
             init(_ value: Date, format: Date.FormatStyle) {
               self = .formattedDate(value, .init(format: format))
@@ -242,10 +243,11 @@ extension String {
               self = .string(format.format(value))
             }
 
-            init<F>(_ value: F.FormatInput, format: F)
-            where F: FormatStyle, F.FormatOutput == AttributedString {
-              self = .attributedString(format.format(value))
-            }
+            // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+            // init<F>(_ value: F.FormatInput, format: F)
+            // where F: FormatStyle, F.FormatOutput == AttributedString {
+            //   self = .attributedString(format.format(value))
+            // }
           }
 
           private var _formattedValue: (any Sendable)?
@@ -281,6 +283,13 @@ extension String {
             self._format = { _ in "\(value)" }
           }
 
+          // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+          // @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+          // init(_ value: AttributedString) {
+          //   self._format = { _ in String(value.characters) }
+          //   self.formattedValue = .attributedString(value)
+          // }
+
           @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
           init<T, F>(_ value: T, format: F)
           where
@@ -293,17 +302,18 @@ extension String {
             self.formattedValue = .init(value, format: format)
           }
 
-          @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
-          init<T, F>(_ value: T, format: F)
-          where
-            T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable,
-            F.FormatOutput == AttributedString
-          {
-            self._format = {
-              String(format.locale($0).format(value).characters)
-            }
-            self.formattedValue = .init(value, format: format)
-          }
+          // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+          // @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+          // init<T, F>(_ value: T, format: F)
+          // where
+          //   T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable,
+          //   F.FormatOutput == AttributedString
+          // {
+          //   self._format = {
+          //     String(format.locale($0).format(value).characters)
+          //   }
+          //   self.formattedValue = .init(value, format: format)
+          // }
 
           func format(locale: Locale) -> String {
             self._format(locale)
@@ -457,6 +467,8 @@ extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWr
         case .currency(let formatStyle): self.init(value, format: formatStyle)
         case .percent(let formatStyle): self.init(value, format: formatStyle)
         }
+      // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+      // case .attributedString(let value): self.init(value)
       default:
         throw DecodingError.typeMismatch(
           Self.self,
@@ -534,8 +546,9 @@ extension String.LocalizationValuePolyfill.FormatArgument.Storage.StringFormatWr
     case (.formattedFloat(let lhsFloat, _), .formattedFloat(let rhsFloat, _)): lhsFloat == rhsFloat
     case (.formattedInt(let lhsInt, _), .formattedInt(let rhsInt, _)): lhsInt == rhsInt
     case (.string(let lhsString), .string(let rhsString)): lhsString == rhsString
-    case (.attributedString(let lhsAttributedString), .attributedString(let rhsAttributedString)):
-      lhsAttributedString == rhsAttributedString
+    // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
+    // case (.attributedString(let lhsAttributedString), .attributedString(let rhsAttributedString)):
+    //   lhsAttributedString == rhsAttributedString
     default: false
     }
   }
