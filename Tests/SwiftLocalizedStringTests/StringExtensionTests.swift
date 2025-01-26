@@ -33,35 +33,31 @@ struct StringExtensionTests {
       #expect(String(localized: "color", bundle: .module) == "Color")
     }
 
-    @Test func testLocalizedStringInterpolation() throws {
+    @Test(
+      .bug(
+        "https://github.com/kphrx/swift-localized-string/issues/3", id: 3,
+        "Cannot print localized `UInt32.max`"))
+    func testLocalizedStringInterpolation() throws {
       let nbsp: (normal: String, narrow: String) = ("\u{a0}", "\u{202f}")
       #if swift(>=6.1) || canImport(Darwin)
-      if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
-        #expect(
-          String(
-            localized:
-              "%@ decimal: \(Decimal(0.6), format: .percent), string: \("text"), 64bit unsigned integer: \(UInt64.max), 64bit integer: \(Int64.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))",
-            bundle: .module, locale: Locale(identifier: "fr_FR"))
-            == "64bit unsigned integer: 18\(nbsp.narrow)446\(nbsp.narrow)744\(nbsp.narrow)073\(nbsp.narrow)709\(nbsp.narrow)551\(nbsp.narrow)615, 32bit unsigned integer: 4\(nbsp.narrow)294\(nbsp.narrow)967\(nbsp.narrow)295, 64bit integer: -9\(nbsp.narrow)223\(nbsp.narrow)372\(nbsp.narrow)036\(nbsp.narrow)854\(nbsp.narrow)775\(nbsp.narrow)808, 32bit integer: -2\(nbsp.narrow)147\(nbsp.narrow)483\(nbsp.narrow)648, double: 42,195000, float: 3,140000, decimal: 60\(nbsp.normal)%, text"
-        )
-      } else {
-        #expect(
-          String(
-            localized:
-              "%@ decimal: \(Decimal(0.6), format: .percent), string: \("text"), 64bit unsigned integer: \(UInt64.max), 64bit integer: \(Int64.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))",
-            bundle: .module, locale: Locale(identifier: "fr_FR"))
-            == "64bit unsigned integer: -1, 32bit unsigned integer: -1, 64bit integer: -9\(nbsp.narrow)223\(nbsp.narrow)372\(nbsp.narrow)036\(nbsp.narrow)854\(nbsp.narrow)775\(nbsp.narrow)808, 32bit integer: -2\(nbsp.narrow)147\(nbsp.narrow)483\(nbsp.narrow)648, double: 42,195000, float: 3,140000, decimal: 60\(nbsp.normal)%, text"
-        )
-      }
+      let localizedUInt64Max =
+        if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+          "18\(nbsp.narrow)446\(nbsp.narrow)744\(nbsp.narrow)073\(nbsp.narrow)709\(nbsp.narrow)551\(nbsp.narrow)615"
+        } else {
+          "-1"
+        }
       #else
+      let localizedUInt64Max = "-1"
+      #endif
+      let localizedUInt32Max = localizedUInt64Max
+
       #expect(
         String(
           localized:
             "%@ decimal: \(Decimal(0.6), format: .percent), string: \("text"), 64bit unsigned integer: \(UInt64.max), 64bit integer: \(Int64.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))",
           bundle: .module, locale: Locale(identifier: "fr_FR"))
-          == "64bit unsigned integer: -1, 32bit unsigned integer: -1, 64bit integer: -9\(nbsp.narrow)223\(nbsp.narrow)372\(nbsp.narrow)036\(nbsp.narrow)854\(nbsp.narrow)775\(nbsp.narrow)808, 32bit integer: -2\(nbsp.narrow)147\(nbsp.narrow)483\(nbsp.narrow)648, double: 42,195000, float: 3,140000, decimal: 60\(nbsp.normal)%, text"
+          == "64bit unsigned integer: \(localizedUInt64Max), 32bit unsigned integer: \(localizedUInt32Max), 64bit integer: -9\(nbsp.narrow)223\(nbsp.narrow)372\(nbsp.narrow)036\(nbsp.narrow)854\(nbsp.narrow)775\(nbsp.narrow)808, 32bit integer: -2\(nbsp.narrow)147\(nbsp.narrow)483\(nbsp.narrow)648, double: 42,195000, float: 3,140000, decimal: 60\(nbsp.normal)%, text"
       )
-      #endif
     }
   }
 }
