@@ -61,15 +61,16 @@ struct StringLocalizationValuePolyfillTests {
   @Test func testStringInterpolationWithFormatSpecifiable() throws {
     let encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
-    #if canImport(Darwin)
-    let expected = """
-      {"arguments":[{"string":{"_0":"text"}},{"uint64":{"_0":18446744073709551615}},{"int64":{"_0":-9223372036854775808}},{"double":{"_0":42.195}},{"uint32":{"_0":4294967295}},{"int32":{"_0":-2147483648}},{"float":{"_0":3.1400001049041748}}],"key":"%%@, string: %@, 64bit unsigned integer: %llu, 64bit integer: %lld, double: %lf, 32bit unsigned integer: %u, 32bit integer: %d, float: %f"}
-      """
-    #else
-    let expected = """
-      {"arguments":[{"string":{"_0":"text"}},{"uint64":{"_0":18446744073709551615}},{"int64":{"_0":-9223372036854775808}},{"double":{"_0":42.195}},{"uint32":{"_0":4294967295}},{"int32":{"_0":-2147483648}},{"float":{"_0":3.14}}],"key":"%%@, string: %@, 64bit unsigned integer: %llu, 64bit integer: %lld, double: %lf, 32bit unsigned integer: %u, 32bit integer: %d, float: %f"}
-      """
-    #endif
+    let expected =
+      if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+        """
+        {"arguments":[{"string":{"_0":"text"}},{"uint64":{"_0":18446744073709551615}},{"int64":{"_0":-9223372036854775808}},{"double":{"_0":42.195}},{"uint32":{"_0":4294967295}},{"int32":{"_0":-2147483648}},{"float":{"_0":3.14}}],"key":"%%@, string: %@, 64bit unsigned integer: %llu, 64bit integer: %lld, double: %lf, 32bit unsigned integer: %u, 32bit integer: %d, float: %f"}
+        """
+      } else {
+        """
+        {"arguments":[{"string":{"_0":"text"}},{"uint64":{"_0":18446744073709551615}},{"int64":{"_0":-9223372036854775808}},{"double":{"_0":42.195}},{"uint32":{"_0":4294967295}},{"int32":{"_0":-2147483648}},{"float":{"_0":3.1400001049041748}}],"key":"%%@, string: %@, 64bit unsigned integer: %llu, 64bit integer: %lld, double: %lf, 32bit unsigned integer: %u, 32bit integer: %d, float: %f"}
+        """
+      }
 
     #expect(
       String(
