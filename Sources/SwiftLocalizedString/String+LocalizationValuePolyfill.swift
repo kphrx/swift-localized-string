@@ -121,11 +121,11 @@ extension String {
               }
               let format: Format
 
-              init(format: Date.FormatStyle) {
-                self.format = .dateTime(format)
+              static func dateTime(_ format: Date.FormatStyle) -> Self {
+                self.init(format: .dateTime(format))
               }
-              init(format: Date.ISO8601FormatStyle) {
-                self.format = .iso8601(format)
+              static func iso8601(_ format: Date.ISO8601FormatStyle) -> Self {
+                self.init(format: .iso8601(format))
               }
             }
 
@@ -139,14 +139,14 @@ extension String {
               }
               let format: Format
 
-              init(format: FormatStyle) {
-                self.format = .number(format)
+              static func number(_ format: FormatStyle) -> Self {
+                self.init(format: .number(format))
               }
-              init(format: FormatStyle.Currency) {
-                self.format = .currency(format)
+              static func currency(_ format: FormatStyle.Currency) -> Self {
+                self.init(format: .currency(format))
               }
-              init(format: FormatStyle.Percent) {
-                self.format = .percent(format)
+              static func percent(_ format: FormatStyle.Percent) -> Self {
+                self.init(format: .percent(format))
               }
             }
 
@@ -160,14 +160,14 @@ extension String {
               }
               let format: Format
 
-              init(format: FormatStyle) {
-                self.format = .number(format)
+              static func number(_ format: FormatStyle) -> Self {
+                self.init(format: .number(format))
               }
-              init(format: FormatStyle.Currency) {
-                self.format = .currency(format)
+              static func currency(_ format: FormatStyle.Currency) -> Self {
+                self.init(format: .currency(format))
               }
-              init(format: FormatStyle.Percent) {
-                self.format = .percent(format)
+              static func percent(_ format: FormatStyle.Percent) -> Self {
+                self.init(format: .percent(format))
               }
             }
 
@@ -181,14 +181,14 @@ extension String {
               }
               let format: Format
 
-              init(format: FormatStyle) {
-                self.format = .number(format)
+              static func number(_ format: FormatStyle) -> Self {
+                self.init(format: .number(format))
               }
-              init(format: FormatStyle.Currency) {
-                self.format = .currency(format)
+              static func currency(_ format: FormatStyle.Currency) -> Self {
+                self.init(format: .currency(format))
               }
-              init(format: FormatStyle.Percent) {
-                self.format = .percent(format)
+              static func percent(_ format: FormatStyle.Percent) -> Self {
+                self.init(format: .percent(format))
               }
             }
 
@@ -201,46 +201,39 @@ extension String {
             // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
             // case attributedString(AttributedString)
 
-            init(_ value: Date, format: Date.FormatStyle) {
-              self = .formattedDate(value, .init(format: format))
-            }
-            init(_ value: Date, format: Date.ISO8601FormatStyle) {
-              self = .formattedDate(value, .init(format: format))
-            }
-
-            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle) {
-              self = .formattedDecimal(value, .init(format: format))
-            }
-            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle.Currency) {
-              self = .formattedDecimal(value, .init(format: format))
-            }
-            init(_ value: Decimal, format: FormattedDecimalStyle.FormatStyle.Percent) {
-              self = .formattedDecimal(value, .init(format: format))
-            }
-
-            init(_ value: Double, format: FormattedFloatStyle.FormatStyle) {
-              self = .formattedFloat(value, .init(format: format))
-            }
-            init(_ value: Double, format: FormattedFloatStyle.FormatStyle.Currency) {
-              self = .formattedFloat(value, .init(format: format))
-            }
-            init(_ value: Double, format: FormattedFloatStyle.FormatStyle.Percent) {
-              self = .formattedFloat(value, .init(format: format))
-            }
-
-            init(_ value: Int, format: FormattedIntStyle.FormatStyle) {
-              self = .formattedInt(value, .init(format: format))
-            }
-            init(_ value: Int, format: FormattedIntStyle.FormatStyle.Currency) {
-              self = .formattedInt(value, .init(format: format))
-            }
-            init(_ value: Int, format: FormattedIntStyle.FormatStyle.Percent) {
-              self = .formattedInt(value, .init(format: format))
-            }
-
             init<F>(_ value: F.FormatInput, format: F)
             where F: FormatStyle, F.FormatOutput == String {
-              self = .string(format.format(value))
+              self =
+                switch (value, format) {
+                case (let date as Date, let format as Date.FormatStyle):
+                  .formattedDate(date, .dateTime(format))
+                case (let date as Date, let format as Date.ISO8601FormatStyle):
+                  .formattedDate(date, .iso8601(format))
+                case (let decimal as Decimal, let format as FormattedDecimalStyle.FormatStyle):
+                  .formattedDecimal(decimal, .number(format))
+                case (
+                  let decimal as Decimal, let format as FormattedDecimalStyle.FormatStyle.Currency
+                ):
+                  .formattedDecimal(decimal, .currency(format))
+                case (
+                  let decimal as Decimal, let format as FormattedDecimalStyle.FormatStyle.Percent
+                ):
+                  .formattedDecimal(decimal, .percent(format))
+                case (let double as Double, let format as FormattedFloatStyle.FormatStyle):
+                  .formattedFloat(double, .number(format))
+                case (let double as Double, let format as FormattedFloatStyle.FormatStyle.Currency):
+                  .formattedFloat(double, .currency(format))
+                case (let double as Double, let format as FormattedFloatStyle.FormatStyle.Percent):
+                  .formattedFloat(double, .percent(format))
+                case (let int as Int, let format as FormattedIntStyle.FormatStyle):
+                  .formattedInt(int, .number(format))
+                case (let int as Int, let format as FormattedIntStyle.FormatStyle.Currency):
+                  .formattedInt(int, .currency(format))
+                case (let int as Int, let format as FormattedIntStyle.FormatStyle.Percent):
+                  .formattedInt(int, .percent(format))
+                default:
+                  .string(format.format(value))
+                }
             }
 
             // TODO: Currently open-source Swift, 'AttributedString' does not conform to 'Codable'
@@ -622,11 +615,7 @@ extension String.LocalizationValuePolyfill: ExpressibleByStringInterpolation {
       T: Sendable, T == F.FormatInput, F: FormatStyle, F: Sendable, F.FormatOutput == String
     {
       self.value += "%@"
-      #if canImport(Darwin)
-      self.interpolations.append(.init(format.format(value)))
-      #else
       self.interpolations.append(.init(stringFormat: .init(value, format: format)))
-      #endif
     }
 
     mutating func appendInterpolation(_ value: String) {
