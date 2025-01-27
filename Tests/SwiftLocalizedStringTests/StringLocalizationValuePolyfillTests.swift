@@ -24,11 +24,15 @@ import Testing
 @testable import SwiftLocalizedString
 
 struct StringLocalizationValuePolyfillTests {
-  private func compare(_ actual: String.LocalizationValuePolyfill, expected: (value: String, via: JSONEncoder)) throws {
+  private func compare(
+    _ actual: String.LocalizationValuePolyfill, expected: (value: String, via: JSONEncoder)
+  ) throws {
     let encodedActual = try expected.via.encode(actual)
 
     #expect(String(data: encodedActual, encoding: .utf8) == expected.value)
-    #expect(try JSONDecoder().decode(String.LocalizationValuePolyfill.self, from: encodedActual) == actual)
+    #expect(
+      try JSONDecoder().decode(String.LocalizationValuePolyfill.self, from: encodedActual) == actual
+    )
   }
 
   @Test func testStringInterpolationWithSubject() throws {
@@ -62,7 +66,9 @@ struct StringLocalizationValuePolyfillTests {
       """
     #endif
 
-    try self.compare("decimal: \(Decimal(0.6), format: .percent), date: \(Date(timeIntervalSince1970: 0), format: .iso8601)", expected: (expected, encoder))
+    try self.compare(
+      "decimal: \(Decimal(0.6), format: .percent), date: \(Date(timeIntervalSince1970: 0), format: .iso8601)",
+      expected: (expected, encoder))
   }
 
   @Test func testStringInterpolationWithFormatSpecifiable() throws {
@@ -79,6 +85,8 @@ struct StringLocalizationValuePolyfillTests {
       """
     #endif
 
-    try self.compare("%@, string: \("text"), 64bit unsigned integer: \(UInt64.max), 64bit integer: \(Int64.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))", expected: (expected, encoder))
+    try self.compare(
+      "%@, string: \("text"), 64bit unsigned integer: \(UInt64.max), 64bit integer: \(Int64.min), double: \(Double(42.195)), 32bit unsigned integer: \(UInt32.max), 32bit integer: \(Int32.min), float: \(Float(3.14))",
+      expected: (expected, encoder))
   }
 }
